@@ -1,0 +1,68 @@
+#include "BluetoothSerial.h"
+
+BluetoothSerial SerialBT;
+
+char receivedChar; // Variable para almacenar el carácter recibido
+
+void setup() {
+    Serial.begin(9600);  // Inicializa la comunicación serie a 9600 baudios para depuración
+    SerialBT.begin("4 LEDS ESP32");  // Nombre del dispositivo Bluetooth
+
+    // Configura los pines de los 4 LEDs como salida y apágalos inicialmente
+    pinMode(2, OUTPUT);
+    pinMode(4, OUTPUT);
+    pinMode(5, OUTPUT);
+    pinMode(18, OUTPUT);
+
+    // Apaga todos los LEDs al inicio
+    digitalWrite(2, LOW);
+    digitalWrite(4, LOW);
+    digitalWrite(5, LOW);
+    digitalWrite(18, LOW);
+}
+
+void loop() {
+    // Verifica si se ha recibido un dato por Bluetooth
+    if (SerialBT.available()) {
+        receivedChar = SerialBT.read();  // Lee el carácter recibido
+
+        // Usa un switch para controlar cada LED de manera explícita
+        switch (receivedChar) {
+            case '1':
+                digitalWrite(2, !digitalRead(2)); // Alterna el estado del LED en el pin 2
+                SerialBT.println(digitalRead(2) ? "LED 1 encendido" : "LED 1 apagado");
+                break;
+            case '2':
+                digitalWrite(4, !digitalRead(4)); // Alterna el estado del LED en el pin 4
+                SerialBT.println(digitalRead(4) ? "LED 2 encendido" : "LED 2 apagado");
+                break;
+            case '3':
+                digitalWrite(5, !digitalRead(5)); // Alterna el estado del LED en el pin 5
+                SerialBT.println(digitalRead(5) ? "LED 3 encendido" : "LED 3 apagado");
+                break;
+            case '4':
+                digitalWrite(18, !digitalRead(18)); // Alterna el estado del LED en el pin 18
+                SerialBT.println(digitalRead(18) ? "LED 4 encendido" : "LED 4 apagado");
+                break;
+            case '5':
+                // Enciende todos los LEDs
+                digitalWrite(2, HIGH);
+                digitalWrite(4, HIGH);
+                digitalWrite(5, HIGH);
+                digitalWrite(18, HIGH);
+                SerialBT.println("Todos los LEDs encendidos");
+                break;
+            case '6':
+                // Apaga todos los LEDs
+                digitalWrite(2, LOW);
+                digitalWrite(4, LOW);
+                digitalWrite(5, LOW);
+                digitalWrite(18, LOW);
+                SerialBT.println("Todos los LEDs apagados");
+                break;
+            default:
+                SerialBT.println("Comando no reconocido");
+                break;
+        }
+    }
+}
