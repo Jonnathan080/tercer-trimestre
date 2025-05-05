@@ -1,0 +1,154 @@
+include <WiFi.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7735.h>
+#include <SPI.h>
+#include <time.h>
+
+// Pines para pantalla ST7735
+#define TFT_CS     5
+#define TFT_RST    4
+#define TFT_DC     2
+
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
+
+// WiFi
+const char* ssid = "HALLO_MARIA";
+const char* password = "0104680152";
+
+// NTP
+const char* ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = -5 * 3600;   // Ecuador
+const int daylightOffset_sec = 0;
+
+// Días en español
+const char* dias_es[] = {
+  "Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"
+};
+
+// Meses en español
+const char* meses_es[] = {
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+};
+
+// Colores personalizados
+#define COLOR_FONDO      ST77XX_BLACK
+#define COLOR_HORA       ST77XX_CYAN
+#define COLOR_MINUTOS    ST77XX_CYAN
+#define COLOR_FECHA      ST77XX_YELLOW
+#define COLOR_DIA        ST77XX_GREEN
+#define COLOR_BORDE      ST77XX_ORANGE
+
+void setup() {
+  Serial.begin(115200);
+
+  // Inicializar pantalla
+  tft.initR(INITR_BLACKTAB);
+  tft.setRotation(1);  // Orientación horizontal
+  tft.fillScreen(COLOR_FONDO);
+  tft.setTextWrap(false);
+
+  // Conectar WiFi
+  WiFi.begin(ssid, password);
+  tft.setTextSize(1);
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setCursor(10, 10);
+  tft.print("Conectando a WiFi");
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+    tft.print(".");
+  }
+
+  tft.fillScreen(COLOR_FONDO);
+  tft.setCursor(10, 10);
+  tft.print("WiFi conectado!");
+  delay(1000);
+
+  // Configurar hora NTP
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+}
+
+void loop() {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Fallo al obtener la hora");
+    tft.fillScreen(ST77XX_RED);
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setTextSize(2);
+    tft.setCursor(10, 50);
+    tft.print("Error de hora");
+    delay(2000);
+    return;
+  }
+
+  // Dibujar fondo con borde decorativo
+  tft.fillScreen(COLOR_FONDO);
+  tft.drawRect(0, 0, tft.width(), tft.height(), COLOR_BORDE);
+  tft.drawRect(2, 2, tft.width()-4, tft.height()-4, COLOR_BORDE);
+
+  // Mostrar hora (HH:MM)
+  char hora_str[3];
+  sprintf(hora_str, "%02d", timeinfo.tm_hour);
+  
+  tft.setTextSize(6);
+  tft.setTextColor(COLOR_HORA);
+  tft.setCursor(10, 20);
+  tft.print(hora_str);
+
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setCursor(70, 20);
+  tft.print(":");
+
+  char min_str[3];
+  sprintf(min_str, "%02d", timeinfo.tm_min);
+  tft.setTextColor(COLOR_MINUTOS);
+  tft.setCursor(85, 20);
+  tft.print(min_str);
+
+  // Mostrar segundos más pequeños
+  tft.setTextSize(2);
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setCursor(145, 35);
+  tft.printf(":%02d", timeinfo.tm_sec);
+
+  // Mostrar fecha completa (Día, DD de Mes de AAAA)
+  tft.setTextSize(1);
+  tft.setTextColor(COLOR_DIA);
+  tft.setCursor(20, 90);
+  tft.print(dias_es[timeinfo.tm_wday]);
+  
+  tft.setTextColor(COLOR_FECHA);
+  tft.setCursor(20, 105);
+  tft.printf("%d de %s de %d", 
+            timeinfo.tm_mday, 
+            meses_es[timeinfo.tm_mon], 
+            1900 + timeinfo.tm_year);
+
+  // Dibujar separador decorativo
+  tft.drawFastHLine(10, 80, tft.width()-20, ST77XX_BLUE);
+
+  // Mostrar señal WiFi
+  drawWifiStatus();
+
+  delay(200); // Actualización más suave
+}
+
+void drawWifiStatus() {
+  int strength = WiFi.RSSI();
+  int bars;
+  
+  if (strength > -55) bars = 4;
+  else if (strength > -65) bars = 3;
+  else if (strength > -75) bars = 2;
+  else if (strength > -85) bars = 1;
+  else bars = 0;
+  
+  int x = tft.width() - 25;
+  int y = 5;
+  
+  for (int i = 0; i < bars; i++) {
+    tft.fillRect(x + i*5, y + (4-i)*3, 3, (i+1)*3, ST77XX_GREEN);
+  }
+}
